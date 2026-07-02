@@ -1,36 +1,33 @@
 # App Store Screenshot Generator
-# Lightweight nginx container serving static files
+# Node container: serves the static frontend AND the /api/asc App Store Connect
+# upload backend from a single process.
 
-FROM nginx:alpine
+FROM node:20-alpine
 
 LABEL maintainer="App Store Screenshot Generator"
-LABEL description="Browser-based tool for creating App Store marketing screenshots"
+LABEL description="Browser-based App Store screenshot generator with App Store Connect upload"
 
-# Remove default nginx static assets
-RUN rm -rf /usr/share/nginx/html/*
+WORKDIR /app
 
-# Copy application files
-COPY index.html /usr/share/nginx/html/
-COPY app.js /usr/share/nginx/html/
-COPY styles.css /usr/share/nginx/html/
-COPY three-renderer.js /usr/share/nginx/html/
-COPY language-utils.js /usr/share/nginx/html/
-COPY magical-titles.js /usr/share/nginx/html/
-COPY llm.js /usr/share/nginx/html/
+# Install backend dependencies first for better layer caching.
+COPY server/package.json server/package-lock.json ./server/
+RUN cd server && npm ci --omit=dev
 
-# Copy assets
-COPY models/ /usr/share/nginx/html/models/
-COPY img/ /usr/share/nginx/html/img/
+# Backend source
+COPY server/server.js server/asc.js ./server/
 
-# Copy custom nginx configuration for SPA and caching
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Frontend static files
+COPY index.html app.js styles.css three-renderer.js language-utils.js \
+     magical-titles.js llm.js lucide-icons.js asc-upload.js ./
+COPY models/ ./models/
+COPY img/ ./img/
 
-# Expose port 80
-EXPOSE 80
+ENV PORT=3000
+ENV STATIC_ROOT=/app
+EXPOSE 3000
 
-# Health check
+# Health check hits the same /health endpoint the old nginx image exposed.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server/server.js"]

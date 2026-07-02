@@ -1195,6 +1195,22 @@ input[type="range"]::-webkit-slider-thumb {
     width: 100%;
 }
 
+/* App Store Connect upload button */
+.asc-upload-btn {
+    width: 100%;
+    margin-top: 8px;
+    background: #0071e3;
+}
+
+.asc-upload-btn:hover {
+    background: #0077ed;
+}
+
+/* Hidden attribute must win over the flex display above */
+.export-btn[hidden] {
+    display: none;
+}
+
 /* Modal styles */
 .modal-overlay {
     position: fixed;

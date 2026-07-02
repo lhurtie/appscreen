@@ -291,6 +291,13 @@
                         </svg>
                         Export All
                     </button>
+                    <button class="export-btn asc-upload-btn" id="asc-upload-btn" title="Upload screenshots to App Store Connect" hidden>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 19V6M5 12l7-7 7 7"/>
+                            <path d="M5 19h14"/>
+                        </svg>
+                        Upload to App Store Connect
+                    </button>
                 </div>
             </div>
         </div>
@@ -1774,6 +1781,78 @@
         </div>
     </div>
 
+    <!-- App Store Connect Upload Modal -->
+    <div class="modal-overlay" id="asc-upload-modal">
+        <div class="modal settings-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Upload to App Store Connect</h3>
+                <button class="modal-close" id="asc-upload-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="settings-section">
+                <p class="settings-description">Uploads the rendered screenshots directly to an editable App Store version. Credentials stay on the server.</p>
+
+                <div class="settings-model-group">
+                    <label class="settings-model-label" for="asc-app-select">App</label>
+                    <select id="asc-app-select" class="settings-model-select">
+                        <option value="">Loading apps…</option>
+                    </select>
+                </div>
+
+                <div class="settings-model-group">
+                    <label class="settings-model-label" for="asc-version-select">Version</label>
+                    <select id="asc-version-select" class="settings-model-select" disabled>
+                        <option value="">Select an app first</option>
+                    </select>
+                </div>
+
+                <div class="settings-model-group">
+                    <label class="settings-model-label" for="asc-locale-select">Language</label>
+                    <select id="asc-locale-select" class="settings-model-select" disabled>
+                        <option value="">Select a version first</option>
+                    </select>
+                </div>
+
+                <div class="settings-model-group">
+                    <label class="settings-model-label" for="asc-displaytype-select">Device (screenshot display type)</label>
+                    <select id="asc-displaytype-select" class="settings-model-select">
+                        <option value="APP_IPHONE_67">iPhone 6.9" / 6.7" (APP_IPHONE_67)</option>
+                        <option value="APP_IPHONE_65">iPhone 6.5" (APP_IPHONE_65)</option>
+                        <option value="APP_IPHONE_61">iPhone 6.1" (APP_IPHONE_61)</option>
+                        <option value="APP_IPHONE_58">iPhone 5.8" (APP_IPHONE_58)</option>
+                        <option value="APP_IPHONE_55">iPhone 5.5" (APP_IPHONE_55)</option>
+                        <option value="APP_IPAD_PRO_3GEN_129">iPad Pro 12.9" 3rd gen (APP_IPAD_PRO_3GEN_129)</option>
+                        <option value="APP_IPAD_PRO_3GEN_11">iPad Pro 11" 3rd gen (APP_IPAD_PRO_3GEN_11)</option>
+                        <option value="APP_IPAD_PRO_129">iPad Pro 12.9" (APP_IPAD_PRO_129)</option>
+                        <option value="APP_IPAD_105">iPad 10.5" (APP_IPAD_105)</option>
+                    </select>
+                </div>
+
+                <div class="settings-provider-selector" style="margin-top: 12px;">
+                    <label class="settings-provider-option">
+                        <input type="radio" name="asc-scope" value="current">
+                        <span class="provider-label">Current screenshot</span>
+                    </label>
+                    <label class="settings-provider-option">
+                        <input type="radio" name="asc-scope" value="all" checked>
+                        <span class="provider-label">All screenshots</span>
+                    </label>
+                </div>
+
+                <div class="settings-key-status" id="asc-upload-status" style="margin-top: 12px;"></div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-cancel" id="asc-upload-cancel">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="asc-upload-start" style="background: var(--accent);">Upload</button>
+            </div>
+        </div>
+    </div>
+
     <!-- About Modal -->
     <div class="modal-overlay" id="about-modal">
         <div class="modal">
@@ -1966,5 +2045,6 @@
     <script src="lucide-icons.js"></script>
     <script src="three-renderer.js"></script>
     <script src="app.js"></script>
+    <script src="asc-upload.js"></script>
 </body>
 </html>

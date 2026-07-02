@@ -20,17 +20,28 @@ FUNDING.yml
 .DS_Store
 Thumbs.db
 
-# Node/Electron (not needed for web deployment)
+# Dependencies (reinstalled inside the image)
 node_modules/
 electron/
+server/node_modules/
+
+# Root tooling not needed in the runtime image
 package.json
 package-lock.json
+scripts/
+src-tauri/
 
-# Docker
+# Docker & deploy
 Dockerfile
 docker-compose.yml
 docker-compose.build.yml
+docker-compose.nas.yml
 .dockerignore
+
+# Secrets — must never be baked into the image
+.env
+*.p8
+asc.p8
 
 # Build artifacts
 *.log

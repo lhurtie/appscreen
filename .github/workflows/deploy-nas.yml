@@ -1,0 +1,39 @@
+name: Deploy to NAS
+
+# Builds and runs the container on a self-hosted runner on the NAS, exposing the
+# app on port 11112. App Store Connect credentials come from GitHub Secrets and
+# are passed straight into the container as environment variables — nothing is
+# written to disk or committed.
+#
+# Required repository secrets:
+#   ASC_ISSUER_ID   - App Store Connect API issuer id
+#   ASC_KEY_ID      - App Store Connect API key id
+#   ASC_PRIVATE_KEY - full contents of the AuthKey_XXXX.p8 file (with newlines)
+#
+# The self-hosted runner on the NAS must have Docker + the compose plugin and be
+# labelled "nas" (adjust the label below if yours differs).
+
+on:
+  push:
+    branches:
+      - main
+      - claude/nas-docker-appstore-upload-11q6w1
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, nas]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and start container
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: docker compose -f docker-compose.nas.yml up -d --build
+
+      - name: Prune old images
+        run: docker image prune -f

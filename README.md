@@ -144,6 +144,80 @@ If you want to build the image yourself:
 docker compose -f docker-compose.build.yml up -d
 ```
 
+> The container now runs a small Node server (instead of nginx-only) so it can
+> both serve the frontend and perform the App Store Connect upload. It listens on
+> port `3000` inside the container.
+
+## NAS Deployment + App Store Connect Upload
+
+You can run the app on a NAS via a **self-hosted GitHub Actions runner** and push
+your rendered screenshots straight to App Store Connect with one click.
+
+### Why a backend is needed
+
+The App Store Connect API cannot be called from the browser (no CORS) and the
+private `.p8` signing key must never be exposed to the client. The container
+therefore includes a Node backend (`server/`) that signs the ES256 JWT and runs
+Apple's upload flow (reserve → upload parts → MD5 checksum → commit). When the
+backend is not present (e.g. the static GitHub Pages build), the upload button is
+simply hidden.
+
+### 1. Create an App Store Connect API key
+
+1. In App Store Connect go to **Users and Access → Integrations → App Store Connect API**.
+2. Create a key with the **App Manager** role (or higher) and download the
+   `AuthKey_XXXXXXXXXX.p8` file (you can only download it once).
+3. Note the **Issuer ID** (top of the page) and the **Key ID**.
+
+### 2. Add GitHub repository secrets
+
+In the repo, under **Settings → Secrets and variables → Actions**, add:
+
+| Secret | Value |
+|--------|-------|
+| `ASC_ISSUER_ID` | the Issuer ID |
+| `ASC_KEY_ID` | the Key ID |
+| `ASC_PRIVATE_KEY` | the full contents of the `AuthKey_XXXX.p8` file (including the `-----BEGIN/END PRIVATE KEY-----` lines) |
+
+### 3. Set up the self-hosted runner on the NAS
+
+1. Install Docker + the Docker Compose plugin on the NAS.
+2. Add a **self-hosted runner** (repo **Settings → Actions → Runners**) on the NAS
+   and give it the label **`nas`** (the workflow targets `runs-on: [self-hosted, nas]`).
+
+### 4. Deploy
+
+Push to the deploy branch or run the **Deploy to NAS** workflow manually
+(**Actions → Deploy to NAS → Run workflow**). It runs on the NAS runner and does:
+
+```bash
+docker compose -f docker-compose.nas.yml up -d --build
+```
+
+The app is then available at `http://<nas-host>:11112`. Credentials are passed to
+the container as environment variables from the GitHub Secrets — nothing sensitive
+is written to disk or committed.
+
+You can also run it manually on the NAS without the workflow:
+
+```bash
+export ASC_ISSUER_ID=... ASC_KEY_ID=... ASC_PRIVATE_KEY="$(cat AuthKey_XXXX.p8)"
+docker compose -f docker-compose.nas.yml up -d --build
+```
+
+### 5. Upload screenshots
+
+1. Open the app on the NAS, create/style your screenshots.
+2. Click **Upload to App Store Connect** (only visible when the backend has
+   credentials).
+3. Pick the **app**, an **editable version** (e.g. *Prepare for Submission*), the
+   **language**, and the **device / screenshot display type** (defaults to match
+   your current output size), then choose current or all screenshots and upload.
+
+> **Note:** App Store Connect only accepts screenshots for a version in an editable
+> state and only at the exact pixel dimensions Apple requires for each display
+> type. Make sure your output size matches the selected device.
+
 ## Usage
 
 1. **Upload Screenshots**: Drag and drop your app screenshots or click to browse
@@ -175,7 +249,8 @@ Your API key is stored locally in your browser and only sent to the respective A
 - JSZip for batch export
 - Google Fonts API for font picker
 - Claude/OpenAI/Google APIs for translations
-- Docker + nginx for containerized deployment
+- Node + Express backend (static hosting + App Store Connect upload)
+- Docker for containerized deployment
 
 ## Apps Using This Project
 

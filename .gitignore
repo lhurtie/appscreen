@@ -10,6 +10,11 @@
 # Node
 node_modules/
 
+# App Store Connect secrets (never commit)
+.env
+*.p8
+asc.p8
+
 # Build output
 dist/
 out/
