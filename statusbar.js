@@ -28,6 +28,19 @@
         'ipad-11': 'bar',
     };
 
+    // Status bar height as a fraction of the native screenshot height, derived
+    // from Apple's real safe-area top insets (points x scale / native px):
+    //   Dynamic Island 54pt, notch (12/13/14) 47pt, classic 20pt, iPad 24pt.
+    const SB_HEIGHT_BY_DEVICE = {
+        'iphone-6.9': 162 / 2868, // 54pt @3x, 1320x2868
+        'iphone-6.7': 162 / 2796, // 54pt @3x, 1290x2796
+        'iphone-6.5': 141 / 2778, // 47pt @3x, 1284x2778
+        'iphone-5.5': 60 / 2208, //  20pt @3x, 1242x2208
+        'ipad-12.9': 48 / 2732, //  24pt @2x, 2048x2732
+        'ipad-11': 48 / 2388, //   24pt @2x, 1668x2388
+    };
+    const SB_HEIGHT_BY_FRAME = { island: 0.0565, notch: 0.051, bar: 0.027 };
+
     // Cache composites per screenshot object (WeakMap => no serialization issues).
     const cache = new WeakMap();
 
@@ -60,7 +73,7 @@
 
         let canvas;
         try {
-            canvas = compose(img, cfg, frame);
+            canvas = compose(img, cfg, frame, state.outputDevice);
         } catch (err) {
             console.warn('Status bar compositing failed:', err);
             return img;
@@ -71,7 +84,7 @@
 
     // ---- Compositing -------------------------------------------------------
 
-    function compose(img, cfg, frame) {
+    function compose(img, cfg, frame, outputDevice) {
         const w = img.width;
         const h = img.height;
         const canvas = document.createElement('canvas');
@@ -80,7 +93,10 @@
         const c = canvas.getContext('2d');
         c.drawImage(img, 0, 0);
 
-        const barH = Math.round(h * (frame === 'bar' ? 0.042 : 0.065));
+        // True status bar height (safe-area top) with a small margin so the
+        // original bar is fully covered.
+        const ratio = SB_HEIGHT_BY_DEVICE[outputDevice] || SB_HEIGHT_BY_FRAME[frame] || 0.0565;
+        const barH = Math.round(h * ratio * 1.02);
 
         reconstructBackground(c, w, h, barH);
 
@@ -89,11 +105,15 @@
         else if (cfg.style === 'dark') color = '#000000';
         else color = averageLuminance(c, w, barH) < 0.5 ? '#ffffff' : '#000000';
 
-        if (frame === 'island') drawIsland(c, w, barH);
-        else if (frame === 'notch') drawNotch(c, w, barH);
+        // Draw the device frame and remember its left edge to place the clock in
+        // the "ear" beside it (Dynamic Island / notch), like real iOS.
+        let frameLeft = 0;
+        if (frame === 'island') frameLeft = drawIsland(c, w, barH);
+        else if (frame === 'notch') frameLeft = drawNotch(c, w, barH);
 
-        const cy = barH * (frame === 'bar' ? 0.5 : 0.46);
-        drawTime(c, w, barH, cy, cfg.time || '9:41', color, frame);
+        const cy = barH * 0.5;
+        const timeX = frame === 'bar' ? w * 0.5 : frameLeft / 2;
+        drawTime(c, w, barH, cy, timeX, cfg.time || '9:41', color);
         drawIndicators(c, w, barH, cy, color);
 
         return canvas;
@@ -130,21 +150,26 @@
 
     // ---- Frame shapes ------------------------------------------------------
 
+    // Dynamic Island idle pill: ~125pt wide, 37.33pt tall, 11.33pt from top.
+    // Returns the pill's left edge.
     function drawIsland(c, w, barH) {
-        const iw = w * 0.30;
-        const ih = barH * 0.42;
+        const iw = w * 0.29;
+        const ih = barH * 0.69;
         const ix = (w - iw) / 2;
-        const iy = barH * 0.24;
+        const iy = barH * 0.21;
         c.fillStyle = '#000000';
         c.beginPath();
         roundRect(c, ix, iy, iw, ih, ih / 2);
         c.fill();
+        return ix;
     }
 
+    // Notch (iPhone 12/13/14 era): flush to the top, rounded bottom corners.
+    // Returns the notch's left edge.
     function drawNotch(c, w, barH) {
-        const nw = w * 0.34;
-        const nh = barH * 0.5;
-        const r = nh * 0.4;
+        const nw = w * 0.42;
+        const nh = barH * 0.66;
+        const r = nh * 0.42;
         const nx = (w - nw) / 2;
         c.fillStyle = '#000000';
         c.beginPath();
@@ -156,23 +181,24 @@
         c.arcTo(nx, nh, nx, nh - r, r);
         c.closePath();
         c.fill();
+        return nx;
     }
 
     // ---- Content -----------------------------------------------------------
 
-    function drawTime(c, w, barH, cy, time, color, frame) {
-        const fs = Math.round(barH * (frame === 'bar' ? 0.42 : 0.36));
+    function drawTime(c, w, barH, cy, timeX, time, color) {
+        // iOS status bar clock is ~17pt SF semibold => ~0.32 of a 54pt bar.
+        const fs = Math.round(barH * 0.34);
         c.fillStyle = color;
         c.font = `600 ${fs}px -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif`;
         c.textBaseline = 'middle';
         c.textAlign = 'center';
-        // Centred within the left "ear".
-        c.fillText(time, w * 0.135, cy);
+        c.fillText(time, timeX, cy * 1.0);
     }
 
     function drawIndicators(c, w, barH, cy, color) {
-        const marginX = w * 0.068;
-        const iconH = barH * 0.30;
+        const marginX = w * 0.045;
+        const iconH = barH * 0.22;
         const gap = iconH * 0.55;
         let xRight = w - marginX;
         xRight = drawBattery(c, xRight, cy, iconH, color) - gap;
