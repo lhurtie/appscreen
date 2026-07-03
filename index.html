@@ -1793,8 +1793,37 @@
                 </button>
             </div>
 
-            <div class="settings-section">
-                <p class="settings-description">Uploads the rendered screenshots directly to an editable App Store version. Credentials stay on the server.</p>
+            <!-- Credentials view: shown when no API credentials are stored yet -->
+            <div class="settings-section" id="asc-credentials-view" style="display: none;">
+                <p class="settings-description">Enter your App Store Connect API credentials. They are stored on the server (Docker volume), never in the browser. Create a key under <strong>Users and Access → Integrations → App Store Connect API</strong> with the App Manager role.</p>
+
+                <div class="settings-model-group">
+                    <label class="settings-model-label" for="asc-issuer-input">Issuer ID</label>
+                    <input type="text" id="asc-issuer-input" class="settings-model-select" placeholder="e.g. 69a6de70-03db-47e3-e053-5b8c7c11a4d1">
+                </div>
+
+                <div class="settings-model-group">
+                    <label class="settings-model-label" for="asc-keyid-input">Key ID</label>
+                    <input type="text" id="asc-keyid-input" class="settings-model-select" placeholder="e.g. 2X9R4HXF34">
+                </div>
+
+                <div class="settings-model-group">
+                    <label class="settings-model-label" for="asc-p8-input">Private key (.p8)</label>
+                    <textarea id="asc-p8-input" class="settings-model-select" rows="5" placeholder="-----BEGIN PRIVATE KEY-----&#10;…&#10;-----END PRIVATE KEY-----" style="font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                    <input type="file" id="asc-p8-file" accept=".p8,.pem" style="display: none;">
+                    <button class="modal-btn modal-btn-cancel" id="asc-p8-browse" style="margin-top: 6px;">Load .p8 file…</button>
+                </div>
+
+                <div class="settings-key-status" id="asc-credentials-status" style="margin-top: 12px;"></div>
+
+                <div class="modal-buttons">
+                    <button class="modal-btn modal-btn-cancel" id="asc-credentials-delete" style="display: none;">Remove saved credentials</button>
+                    <button class="modal-btn modal-btn-confirm" id="asc-credentials-save" style="background: var(--accent);">Save credentials</button>
+                </div>
+            </div>
+
+            <div class="settings-section" id="asc-upload-view">
+                <p class="settings-description">Uploads the rendered screenshots directly to an editable App Store version. Credentials stay on the server. <a href="#" id="asc-edit-credentials" class="settings-link">Change API credentials</a></p>
 
                 <div class="settings-model-group">
                     <label class="settings-model-label" for="asc-app-select">App</label>

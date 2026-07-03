@@ -27,3 +27,6 @@ frontend-dist/
 *.AppImage
 *.deb
 *.snap
+
+# UI-saved App Store Connect credentials (local dev)
+server/data/

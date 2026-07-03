@@ -46,3 +46,6 @@ asc.p8
 # Build artifacts
 *.log
 *.tmp
+
+# UI-saved credentials (never bake into image)
+server/data/

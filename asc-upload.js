@@ -49,20 +49,114 @@
 
     // ---- Feature detection ------------------------------------------------
 
+    let credentialSource = null; // 'ui' | 'env' | null
+
+    async function refreshStatus() {
+        try {
+            const status = await apiGet('/api/asc/status');
+            backendState = status.configured ? 'configured' : 'unconfigured';
+            credentialSource = status.source || null;
+        } catch {
+            backendState = 'none';
+            credentialSource = null;
+        }
+    }
+
     async function initAscUpload() {
         const btn = $('asc-upload-btn');
         if (!btn) return;
         wireEvents();
+        await refreshStatus();
+    }
+
+    // ---- View switching inside the modal -----------------------------------
+
+    function showCredentialsView() {
+        $('asc-credentials-view').style.display = '';
+        $('asc-upload-view').style.display = 'none';
+        $('asc-upload-start').style.display = 'none';
+        $('asc-credentials-delete').style.display = credentialSource === 'ui' ? '' : 'none';
+        setCredStatus('');
+    }
+
+    function showUploadView() {
+        $('asc-credentials-view').style.display = 'none';
+        $('asc-upload-view').style.display = '';
+        $('asc-upload-start').style.display = '';
+    }
+
+    function setCredStatus(message, kind) {
+        const el = $('asc-credentials-status');
+        if (!el) return;
+        el.textContent = message || '';
+        el.style.color =
+            kind === 'error' ? '#ff453a' : kind === 'success' ? '#34c759' : 'var(--text-secondary)';
+    }
+
+    async function saveCredentials() {
+        const issuerId = $('asc-issuer-input').value.trim();
+        const keyId = $('asc-keyid-input').value.trim();
+        const privateKey = $('asc-p8-input').value.trim();
+
+        if (!issuerId || !keyId || !privateKey) {
+            setCredStatus('Please fill in Issuer ID, Key ID and the .p8 key.', 'error');
+            return;
+        }
+
+        const saveBtn = $('asc-credentials-save');
+        saveBtn.disabled = true;
+        setCredStatus('Saving…');
         try {
-            const status = await apiGet('/api/asc/status');
-            backendState = status.configured ? 'configured' : 'unconfigured';
-        } catch {
-            backendState = 'none';
+            const res = await fetch('/api/asc/credentials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ issuerId, keyId, privateKey }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+
+            backendState = 'configured';
+            credentialSource = 'ui';
+            $('asc-p8-input').value = '';
+            setCredStatus('Credentials saved.', 'success');
+            showUploadView();
+            await loadApps();
+        } catch (err) {
+            setCredStatus(err.message, 'error');
+        } finally {
+            saveBtn.disabled = false;
         }
     }
 
-    // Explain what is missing instead of hiding the feature entirely.
-    async function showSetupHint() {
+    async function deleteSavedCredentials() {
+        try {
+            const res = await fetch('/api/asc/credentials', { method: 'DELETE' });
+            const data = await res.json().catch(() => ({}));
+            backendState = data.configured ? 'configured' : 'unconfigured';
+            credentialSource = data.source || null;
+            setCredStatus('Saved credentials removed.', 'success');
+            $('asc-credentials-delete').style.display = 'none';
+        } catch (err) {
+            setCredStatus(err.message, 'error');
+        }
+    }
+
+    function loadP8File(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            $('asc-p8-input').value = String(reader.result || '').trim();
+        };
+        reader.readAsText(file);
+    }
+
+    // ---- Dialog population -------------------------------------------------
+
+    async function openDialog() {
+        if (backendState === 'none') {
+            // Re-check once: the backend may have come up since page load.
+            await refreshStatus();
+        }
         if (backendState === 'none') {
             await showAppAlert(
                 'App Store Connect upload needs the Docker/NAS deployment.<br><br>' +
@@ -71,22 +165,6 @@
                     '"NAS Deployment" section in the README) and open it from there.',
                 'info'
             );
-        } else {
-            await showAppAlert(
-                'The upload backend is running, but the App Store Connect credentials are missing.<br><br>' +
-                    'Set <code>ASC_ISSUER_ID</code>, <code>ASC_KEY_ID</code> and ' +
-                    '<code>ASC_PRIVATE_KEY</code> (contents of your .p8 key) — as GitHub ' +
-                    'Secrets for the NAS deploy workflow, or as environment variables on the container.',
-                'info'
-            );
-        }
-    }
-
-    // ---- Dialog population -------------------------------------------------
-
-    async function openDialog() {
-        if (backendState !== 'configured') {
-            await showSetupHint();
             return;
         }
 
@@ -101,6 +179,16 @@
         modal.classList.add('visible');
         setStatus('');
 
+        if (backendState === 'unconfigured') {
+            showCredentialsView();
+            return;
+        }
+
+        showUploadView();
+        await loadApps();
+    }
+
+    async function loadApps() {
         const appSelect = $('asc-app-select');
         appSelect.innerHTML = '<option value="">Loading apps…</option>';
         try {
@@ -304,6 +392,16 @@
         $('asc-app-select').addEventListener('change', onAppChange);
         $('asc-version-select').addEventListener('change', onVersionChange);
         $('asc-upload-start').addEventListener('click', startUpload);
+
+        // Credentials view
+        $('asc-edit-credentials').addEventListener('click', (e) => {
+            e.preventDefault();
+            showCredentialsView();
+        });
+        $('asc-credentials-save').addEventListener('click', saveCredentials);
+        $('asc-credentials-delete').addEventListener('click', deleteSavedCredentials);
+        $('asc-p8-browse').addEventListener('click', () => $('asc-p8-file').click());
+        $('asc-p8-file').addEventListener('change', (e) => loadP8File(e.target.files[0]));
     }
 
     if (document.readyState === 'loading') {

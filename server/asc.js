@@ -9,9 +9,15 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const path = require('path');
 const express = require('express');
 
 const API_BASE = 'https://api.appstoreconnect.apple.com';
+
+// Credentials entered through the web UI are persisted here (mount a volume at
+// this location in Docker so they survive container rebuilds).
+const DATA_DIR = process.env.ASC_DATA_DIR || path.join(__dirname, 'data');
+const CREDENTIALS_FILE = path.join(DATA_DIR, 'asc-credentials.json');
 
 // App Store version states in which screenshots may still be edited.
 const EDITABLE_STATES = new Set([
@@ -37,7 +43,37 @@ const DISPLAY_TYPE_BY_DEVICE = {
 // Credentials & JWT
 // -------------------------------------------------------------------------
 
+function readSavedCredentials() {
+    try {
+        const raw = fs.readFileSync(CREDENTIALS_FILE, 'utf8');
+        const json = JSON.parse(raw);
+        if (json && json.issuerId && json.keyId && json.privateKey) return json;
+    } catch {
+        // Missing or unreadable file -> no saved credentials.
+    }
+    return null;
+}
+
+function saveCredentials({ issuerId, keyId, privateKey }) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify({ issuerId, keyId, privateKey }, null, 2), {
+        mode: 0o600,
+    });
+}
+
+function deleteCredentials() {
+    try {
+        fs.unlinkSync(CREDENTIALS_FILE);
+    } catch {
+        // Already gone.
+    }
+}
+
+// Credentials saved through the UI take precedence over environment variables.
 function getConfig() {
+    const saved = readSavedCredentials();
+    if (saved) return { ...saved, source: 'ui' };
+
     const issuerId = process.env.ASC_ISSUER_ID || '';
     const keyId = process.env.ASC_KEY_ID || '';
 
@@ -50,12 +86,36 @@ function getConfig() {
         privateKey = process.env.ASC_PRIVATE_KEY.replace(/\\n/g, '\n');
     }
 
-    return { issuerId, keyId, privateKey };
+    return { issuerId, keyId, privateKey, source: 'env' };
+}
+
+function hasValidShape({ issuerId, keyId, privateKey }) {
+    return Boolean(issuerId && keyId && privateKey && privateKey.includes('PRIVATE KEY'));
 }
 
 function isConfigured() {
-    const { issuerId, keyId, privateKey } = getConfig();
-    return Boolean(issuerId && keyId && privateKey.includes('PRIVATE KEY'));
+    return hasValidShape(getConfig());
+}
+
+function configSource() {
+    const config = getConfig();
+    return hasValidShape(config) ? config.source : null;
+}
+
+// Throws with a helpful message when the key cannot be parsed or used to sign.
+function validateCredentials({ issuerId, keyId, privateKey }) {
+    if (!issuerId || !keyId || !privateKey) {
+        throw new HttpError(400, 'Issuer ID, Key ID and the .p8 private key are all required.');
+    }
+    if (!privateKey.includes('PRIVATE KEY')) {
+        throw new HttpError(400, 'The private key must be the contents of your AuthKey_XXXX.p8 file (PEM format).');
+    }
+    try {
+        const keyObject = crypto.createPrivateKey(privateKey);
+        crypto.sign('sha256', Buffer.from('test'), { key: keyObject, dsaEncoding: 'ieee-p1363' });
+    } catch (err) {
+        throw new HttpError(400, `The .p8 key could not be used for signing: ${err.message}`);
+    }
 }
 
 function base64url(input) {
@@ -280,8 +340,34 @@ function createRouter() {
     };
 
     router.get('/status', (req, res) => {
-        res.json({ configured: isConfigured() });
+        res.json({ configured: isConfigured(), source: configSource() });
     });
+
+    // Save credentials entered through the web UI (persisted server-side).
+    router.post(
+        '/credentials',
+        wrap(async (req, res) => {
+            const body = req.body || {};
+            const credentials = {
+                issuerId: String(body.issuerId || '').trim(),
+                keyId: String(body.keyId || '').trim(),
+                // Normalize Windows line endings and escaped newlines from pasting.
+                privateKey: String(body.privateKey || '').replace(/\r\n/g, '\n').replace(/\\n/g, '\n').trim() + '\n',
+            };
+            validateCredentials(credentials);
+            saveCredentials(credentials);
+            res.json({ configured: true, source: 'ui' });
+        })
+    );
+
+    // Remove UI-saved credentials (falls back to env vars if present).
+    router.delete(
+        '/credentials',
+        wrap(async (req, res) => {
+            deleteCredentials();
+            res.json({ configured: isConfigured(), source: configSource() });
+        })
+    );
 
     router.get(
         '/apps',

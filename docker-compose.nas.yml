@@ -18,12 +18,20 @@ services:
     restart: unless-stopped
     environment:
       - PORT=3000
+      - ASC_DATA_DIR=/data
+      # Optional fallback: credentials can also be entered in the web UI
+      # (Upload button -> API credentials), stored persistently in the volume.
       - ASC_ISSUER_ID=${ASC_ISSUER_ID:-}
       - ASC_KEY_ID=${ASC_KEY_ID:-}
       - ASC_PRIVATE_KEY=${ASC_PRIVATE_KEY:-}
+    volumes:
+      - appscreen-data:/data
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 5s
+
+volumes:
+  appscreen-data:

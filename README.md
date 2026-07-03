@@ -170,9 +170,14 @@ instructions instead of the upload dialog.
    `AuthKey_XXXXXXXXXX.p8` file (you can only download it once).
 3. Note the **Issuer ID** (top of the page) and the **Key ID**.
 
-### 2. Add GitHub repository secrets
+### 2. Provide the credentials — web UI or GitHub secrets
 
-In the repo, under **Settings → Secrets and variables → Actions**, add:
+**Easiest: in the web UI.** Open the app, click **Upload to App Store Connect**
+and enter Issuer ID, Key ID and the `.p8` key (or load the file). They are stored
+server-side in the Docker volume `appscreen-data` and survive container rebuilds.
+
+**Alternatively via GitHub secrets** (used as fallback when nothing is saved in
+the UI). In the repo, under **Settings → Secrets and variables → Actions**, add:
 
 | Secret | Value |
 |--------|-------|
