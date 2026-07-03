@@ -1,8 +1,9 @@
 // App Store Connect upload UI.
 //
 // Feature-detects the /api/asc backend (present only when the app runs in the
-// Node container, not on the static GitHub Pages build). When available, it
-// reveals the "Upload to App Store Connect" button and drives the upload dialog.
+// Node container, not on the static GitHub Pages build). The button is always
+// visible; without a configured backend it explains the required setup instead
+// of opening the upload dialog.
 //
 // Reuses globals from app.js: `state`, `canvas`, `updateCanvas`, `showAppAlert`.
 
@@ -21,6 +22,11 @@
     };
 
     let currentVersions = [];
+
+    // 'configured'   -> backend reachable and credentials present
+    // 'unconfigured' -> backend reachable but ASC_* env vars missing
+    // 'none'         -> no backend (static hosting, e.g. GitHub Pages)
+    let backendState = 'none';
 
     function $(id) {
         return document.getElementById(id);
@@ -46,20 +52,44 @@
     async function initAscUpload() {
         const btn = $('asc-upload-btn');
         if (!btn) return;
+        wireEvents();
         try {
             const status = await apiGet('/api/asc/status');
-            if (status.configured) {
-                btn.hidden = false;
-                wireEvents();
-            }
+            backendState = status.configured ? 'configured' : 'unconfigured';
         } catch {
-            // No backend (e.g. static hosting) -> leave the button hidden.
+            backendState = 'none';
+        }
+    }
+
+    // Explain what is missing instead of hiding the feature entirely.
+    async function showSetupHint() {
+        if (backendState === 'none') {
+            await showAppAlert(
+                'App Store Connect upload needs the Docker/NAS deployment.<br><br>' +
+                    'This page is served statically without the upload backend. ' +
+                    'Run the app via <code>docker-compose.nas.yml</code> (see the ' +
+                    '"NAS Deployment" section in the README) and open it from there.',
+                'info'
+            );
+        } else {
+            await showAppAlert(
+                'The upload backend is running, but the App Store Connect credentials are missing.<br><br>' +
+                    'Set <code>ASC_ISSUER_ID</code>, <code>ASC_KEY_ID</code> and ' +
+                    '<code>ASC_PRIVATE_KEY</code> (contents of your .p8 key) — as GitHub ' +
+                    'Secrets for the NAS deploy workflow, or as environment variables on the container.',
+                'info'
+            );
         }
     }
 
     // ---- Dialog population -------------------------------------------------
 
     async function openDialog() {
+        if (backendState !== 'configured') {
+            await showSetupHint();
+            return;
+        }
+
         const modal = $('asc-upload-modal');
         if (!modal) return;
 

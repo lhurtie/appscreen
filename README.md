@@ -158,9 +158,10 @@ your rendered screenshots straight to App Store Connect with one click.
 The App Store Connect API cannot be called from the browser (no CORS) and the
 private `.p8` signing key must never be exposed to the client. The container
 therefore includes a Node backend (`server/`) that signs the ES256 JWT and runs
-Apple's upload flow (reserve → upload parts → MD5 checksum → commit). When the
-backend is not present (e.g. the static GitHub Pages build), the upload button is
-simply hidden.
+Apple's upload flow (reserve → upload parts → MD5 checksum → commit). The
+**Upload to App Store Connect** button is always visible; when the backend is
+missing (static hosting) or has no credentials, clicking it shows setup
+instructions instead of the upload dialog.
 
 ### 1. Create an App Store Connect API key
 

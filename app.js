@@ -6229,6 +6229,10 @@ function updateScreenshotList() {
     if (exportCurrent) { exportCurrent.disabled = isEmpty; exportCurrent.style.opacity = isEmpty ? '0.4' : ''; exportCurrent.style.pointerEvents = isEmpty ? 'none' : ''; }
     if (exportAll) { exportAll.disabled = isEmpty; exportAll.style.opacity = isEmpty ? '0.4' : ''; exportAll.style.pointerEvents = isEmpty ? 'none' : ''; }
 
+    // Keep the Popouts tab in sync (its Add button is gated on a screenshot image
+    // being present, so it must be refreshed whenever the screenshot list changes)
+    updatePopoutsList();
+
     // Show transfer mode hint if active
     if (state.transferTarget !== null && state.screenshots.length > 1) {
         const hint = document.createElement('div');
@@ -8136,6 +8140,20 @@ function hideExportProgress() {
     if (modal) modal.classList.remove('visible');
 }
 
+// Build the .txt content (headline/subheadline) for a screenshot in a language.
+// Returns null when the screenshot has no text so no empty files are created.
+function getScreenshotTextForExport(screenshot, lang) {
+    const text = screenshot?.text || {};
+    const headline = text.headlines ? (text.headlines[lang] || '') : (text.headline || '');
+    const subheadline = text.subheadlines ? (text.subheadlines[lang] || '') : (text.subheadline || '');
+    if (!headline && !subheadline) return null;
+
+    const lines = [];
+    if (headline) lines.push(`Headline: ${headline}`);
+    if (subheadline) lines.push(`Subheadline: ${subheadline}`);
+    return lines.join('\n') + '\n';
+}
+
 // Export all screenshots for a specific language
 async function exportAllForLanguage(lang) {
     const originalIndex = state.selectedIndex;
@@ -8175,6 +8193,12 @@ async function exportAllForLanguage(lang) {
         const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
 
         zip.file(`screenshot-${i + 1}.png`, base64Data, { base64: true });
+
+        // Include the marketing text as a .txt file next to the image
+        const txt = getScreenshotTextForExport(state.screenshots[i], lang);
+        if (txt) {
+            zip.file(`screenshot-${i + 1}.txt`, txt);
+        }
     }
 
     // Restore original settings
@@ -8248,6 +8272,12 @@ async function exportAllLanguages() {
 
             // Use language code as folder name
             zip.file(`${lang}/screenshot-${i + 1}.png`, base64Data, { base64: true });
+
+            // Include the marketing text as a .txt file next to the image
+            const txt = getScreenshotTextForExport(state.screenshots[i], lang);
+            if (txt) {
+                zip.file(`${lang}/screenshot-${i + 1}.txt`, txt);
+            }
         }
     }
 
