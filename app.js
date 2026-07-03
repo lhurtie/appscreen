@@ -8,6 +8,8 @@ const state = {
     projectLanguages: ['en'], // Languages available in this project
     customWidth: 1290,
     customHeight: 2796,
+    // Synthetic iOS status bar overlay (global, applies to all screenshots)
+    statusBar: { enabled: false, time: '9:41', style: 'auto', frame: 'auto' },
     // Default settings applied to new screenshots
     defaults: {
         background: {
@@ -1530,6 +1532,7 @@ function saveState() {
         outputDevice: state.outputDevice,
         customWidth: state.customWidth,
         customHeight: state.customHeight,
+        statusBar: state.statusBar,
         currentLanguage: state.currentLanguage,
         projectLanguages: state.projectLanguages,
         defaults: state.defaults
@@ -1785,6 +1788,10 @@ function loadState() {
                     state.outputDevice = parsed.outputDevice || 'iphone-6.9';
                     state.customWidth = parsed.customWidth || 1320;
                     state.customHeight = parsed.customHeight || 2868;
+                    state.statusBar = Object.assign(
+                        { enabled: false, time: '9:41', style: 'auto', frame: 'auto' },
+                        parsed.statusBar || {}
+                    );
 
                     // Load global language settings
                     state.currentLanguage = parsed.currentLanguage || 'en';
@@ -2129,6 +2136,23 @@ function updateFrameColorSwatches(deviceType, activeColorId) {
 function syncUIWithState() {
     // Update language button
     updateLanguageButton();
+
+    // Status bar overlay controls
+    const sb = state.statusBar || { enabled: false, time: '9:41', style: 'auto', frame: 'auto' };
+    const sbToggle = document.getElementById('statusbar-toggle');
+    if (sbToggle) {
+        sbToggle.classList.toggle('active', sb.enabled);
+        const row = sbToggle.closest('.toggle-row');
+        const opts = document.getElementById('statusbar-options');
+        if (row) row.classList.toggle('collapsed', !sb.enabled);
+        if (opts) opts.style.display = sb.enabled ? 'block' : 'none';
+    }
+    const sbTime = document.getElementById('statusbar-time');
+    if (sbTime) sbTime.value = sb.time || '9:41';
+    const sbStyle = document.getElementById('statusbar-style');
+    if (sbStyle) sbStyle.value = sb.style || 'auto';
+    const sbFrame = document.getElementById('statusbar-frame');
+    if (sbFrame) sbFrame.value = sb.frame || 'auto';
 
     // Device selector dropdown
     document.querySelectorAll('.output-size-menu .device-option').forEach(opt => {
@@ -3605,6 +3629,41 @@ function setupEventListeners() {
                 target.style.display = row.classList.contains('collapsed') ? 'none' : 'block';
             }
         });
+    });
+
+    // Status bar overlay controls
+    const sbToggle = document.getElementById('statusbar-toggle');
+    if (sbToggle) {
+        sbToggle.addEventListener('click', function () {
+            this.classList.toggle('active');
+            const on = this.classList.contains('active');
+            state.statusBar.enabled = on;
+            const row = this.closest('.toggle-row');
+            const opts = document.getElementById('statusbar-options');
+            if (on) {
+                if (row) row.classList.remove('collapsed');
+                if (opts) opts.style.display = 'block';
+            } else {
+                if (row) row.classList.add('collapsed');
+                if (opts) opts.style.display = 'none';
+            }
+            updateCanvas();
+        });
+    }
+    const sbTime = document.getElementById('statusbar-time');
+    if (sbTime) sbTime.addEventListener('input', (e) => {
+        state.statusBar.time = e.target.value || '9:41';
+        updateCanvas();
+    });
+    const sbStyle = document.getElementById('statusbar-style');
+    if (sbStyle) sbStyle.addEventListener('change', (e) => {
+        state.statusBar.style = e.target.value;
+        updateCanvas();
+    });
+    const sbFrame = document.getElementById('statusbar-frame');
+    if (sbFrame) sbFrame.addEventListener('change', (e) => {
+        state.statusBar.frame = e.target.value;
+        updateCanvas();
     });
 
     // File upload
@@ -7050,8 +7109,8 @@ function renderScreenshotToCanvas(index, targetCanvas, targetCtx, dims, previewS
     const screenshot = state.screenshots[index];
     if (!screenshot) return;
 
-    // Get localized image for current language
-    const img = getScreenshotImage(screenshot);
+    // Get localized image for current language (with optional status bar)
+    const img = getScreenshotRenderImage(screenshot);
 
     // Set canvas size (this also clears the canvas)
     targetCanvas.width = dims.width;
@@ -7769,8 +7828,8 @@ function drawScreenshot() {
     const screenshot = state.screenshots[state.selectedIndex];
     if (!screenshot) return;
 
-    // Use localized image based on current language
-    const img = getScreenshotImage(screenshot);
+    // Use localized image based on current language (with optional status bar)
+    const img = getScreenshotRenderImage(screenshot);
     if (!img) return;
 
     const settings = getScreenshotSettings();

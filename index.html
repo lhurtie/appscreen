@@ -789,6 +789,45 @@
                 </div>
                 </div><!-- end 2d-only-settings -->
 
+                <!-- Status Bar overlay (applies to both 2D and 3D) -->
+                <div class="control-section">
+                    <div class="toggle-row collapsible collapsed" data-target="statusbar-options">
+                        <span class="toggle-label">
+                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                            Status Bar
+                        </span>
+                        <div class="toggle" id="statusbar-toggle"></div>
+                    </div>
+                </div>
+
+                <div id="statusbar-options" style="display: none;">
+                    <p class="settings-description" style="margin: 0 0 10px;">Overlays a clean iOS status bar (9:41, full signal &amp; Wi‑Fi, 100% battery, no carrier) and the device's Dynamic Island / notch. The original status bar's background colour is preserved.</p>
+                    <div class="control-group">
+                        <label class="control-label">Time</label>
+                        <input type="text" id="statusbar-time" value="9:41" maxlength="10" style="width: 100%;">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Color</label>
+                        <select id="statusbar-style" class="settings-model-select" style="width: 100%;">
+                            <option value="auto">Auto (from background)</option>
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Frame</label>
+                        <select id="statusbar-frame" class="settings-model-select" style="width: 100%;">
+                            <option value="auto">Auto (from device)</option>
+                            <option value="island">Dynamic Island</option>
+                            <option value="notch">Notch</option>
+                            <option value="bar">Classic bar</option>
+                            <option value="none">None (indicators only)</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div id="3d-tip" class="tip-box" style="display: none;">
                     <img src="img/info.svg" width="16" height="16" alt="Info">
                     <div class="tip-content">
@@ -2074,6 +2113,7 @@
     <script src="lucide-icons.js"></script>
     <script src="three-renderer.js"></script>
     <script src="app.js"></script>
+    <script src="statusbar.js"></script>
     <script src="asc-upload.js"></script>
 </body>
 </html>

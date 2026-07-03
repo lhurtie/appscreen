@@ -645,10 +645,10 @@ function updateScreenTexture() {
     if (typeof state === 'undefined' || !state.screenshots.length) return;
 
     const screenshot = state.screenshots[state.selectedIndex];
-    // Use getScreenshotImage() for localized image support
-    const screenshotImage = typeof getScreenshotImage === 'function'
-        ? getScreenshotImage(screenshot)
-        : screenshot?.image;
+    // Use getScreenshotRenderImage() for localized image + status bar support
+    const screenshotImage = typeof getScreenshotRenderImage === 'function'
+        ? getScreenshotRenderImage(screenshot)
+        : (typeof getScreenshotImage === 'function' ? getScreenshotImage(screenshot) : screenshot?.image);
     if (!screenshot || !screenshotImage) return;
 
     // Create texture from screenshot
@@ -864,10 +864,10 @@ function renderThreeJSForScreenshot(targetCanvas, width, height, screenshotIndex
     }
 
     // Temporarily update screen texture for this screenshot
-    // Use getScreenshotImage() for localized image support
-    const screenshotImage = typeof getScreenshotImage === 'function'
-        ? getScreenshotImage(screenshot)
-        : screenshot?.image;
+    // Use getScreenshotRenderImage() for localized image + status bar support
+    const screenshotImage = typeof getScreenshotRenderImage === 'function'
+        ? getScreenshotRenderImage(screenshot)
+        : (typeof getScreenshotImage === 'function' ? getScreenshotImage(screenshot) : screenshot?.image);
     const oldMaterial = screenPlaneToUse ? screenPlaneToUse.material : null;
     if (screenshotImage && screenPlaneToUse) {
         const cornerRadius = Math.round(screenshotImage.width * config.cornerRadiusFactor);
